@@ -1,0 +1,42 @@
+{
+    "uksouth": {
+        "displayname": "UK South",
+        "code": "uks",
+        "pairedRegion": "ukwest"
+    },
+    "ukwest": {
+        "displayname": "UK West",
+        "code": "ukw",
+        "pairedRegion": "uksouth"
+    },
+    "northeurope": {
+        "displayname": "North Europe",
+        "code": "neu",
+        "pairedRegion": "westeurope"
+    },
+    "westeurope": {
+        "displayname": "West Europe",
+        "code": "weu",
+        "pairedRegion": "northeurope"
+    },
+    "australiacentral": {
+        "displayname": "Australia Central",
+        "code": "auc",
+        "pairedRegion": "australiaeast"
+    },
+    "australiacentral2": {
+        "displayname": "Australia Central 2",
+        "code": "auc2",
+        "pairedRegion": "australiacentral"
+    },
+    "australiasoutheast": {
+        "displayname": "Australia Southeast",
+        "code": "ause",
+        "pairedRegion": "australiaeast"
+    },
+    "australiaeast": {
+        "displayname": "Australia East",
+        "code": "aue",
+        "pairedRegion": "australiacentral"
+    }
+}
