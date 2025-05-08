@@ -1,0 +1,81 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "environment": {
+      "value": "dev"
+    },
+    "location": {
+      "value": "uksouth"
+    },
+    "domain": {
+      "value": "analytics"
+    },
+    "project": {
+      "value": "u"
+    },
+    "codeRepositoryName": {
+      "value": "analytics-unity-code"
+    },
+    "dataSharing": {
+      "value": [
+        {
+          "tenantName": "devrenfrewshire",
+          "storageAccount": "devrenfrewshirest",
+          "identity": "devrenfrewshireuami"
+        }
+      ]
+    },
+    "tags": {
+      "value": {
+        "CostCenter": "OPEX",
+        "Customer": "TotalMobileInternal",
+        "DataClassification": "Internal Only",
+        "Environment": "DEV",
+        "InternalCustomer": "TotalMobile",
+        "Owner": "platformsupport@totalmobile.co.uk",
+        "Product": "Unity Analytics",
+        "Usage": "Shared"
+      }
+    },
+    "accessPolicies": {
+      "value": [
+        {
+          "objectId": "f09c65fb-d7a9-42d0-b46b-148acbad916f",
+          "permissions": {
+            "secrets": [
+              "Get",
+              "List"
+            ]
+          }
+        }
+      ]
+    },
+    "emailReceivers": {
+      "value": [
+        "piotr.kwiatkowski@totalmobile.co.uk",
+        "narotam.aggarwal@totalmobile.co.uk",
+        "jakub.gutkowski@totalmobile.co.uk"
+      ]
+    },
+    "appServicePrincipalId": {
+      "value": "c870642b-50a3-44de-a2b1-0549360dbda3"
+    },
+    "hotPathEntities" : {
+      "value": [
+        "action",
+        "activity",
+        "allocation",
+        "milestone",
+        "task",
+        "bulletin"
+      ]
+    },
+    "analyticsAdapterPrimarySubnetId": {
+      "value": "/subscriptions/c689c6f8-899c-4ab4-8e1f-07c277ec964d/resourceGroups/dev-unity/providers/Microsoft.Network/virtualNetworks/dev-unity-uks-vnet/subnets/dev-unity-uks-adapter-01-snet"
+    },
+    "analyticsAdapterSecondarySubnetId": {
+      "value": ""
+    }
+  }
+}
