@@ -1,0 +1,74 @@
+parameters:
+  - name: environment
+    type: string
+  - name: azureSubscription
+    type: string
+  - name: enabled
+    type: boolean
+
+jobs:
+- deployment: DeployDatabricks
+  displayName: Databricks Deployment
+  dependsOn: DeployInfra
+  environment: ${{parameters.environment}}
+  condition: and(succeeded(), ${{parameters.enabled}})
+  strategy:
+    runOnce:
+      deploy:
+        steps:
+        - checkout: self
+          submodules: true
+        - task: AzureCLI@2
+          displayName: Enable network traffic to KeyVault
+          inputs:
+            azureSubscription: ${{ parameters.azureSubscription }}
+            scriptType: 'bash'
+            scriptLocation: 'inlineScript'
+            addSpnToEnvironment: true
+            inlineScript: |
+              az keyvault update --resource-group $(resourceGroupName) --name $(keyVaultName) --default-action Allow
+        - task: AzureKeyVault@2
+          inputs:
+            azureSubscription: ${{ parameters.azureSubscription }}
+            KeyVaultName: $(keyVaultName)
+            SecretsFilter: '*'
+            RunAsPreJob: false 
+        - task: AzureCLI@2
+          name: DatabricksSetup
+          displayName: Databricks Secret Scope & Cluster Setup
+          inputs:
+            azureSubscription: ${{ parameters.azureSubscription }}
+            scriptType: 'bash'
+            scriptLocation: 'inlineScript'
+            addSpnToEnvironment: true
+            inlineScript: |             
+              echo 'Configuring Databricks CLI and generating PAT token'
+              access_token=$(az account get-access-token --resource 2ff814a6-3304-4ab8-85cb-cd0e6f879c1d --output json| jq -r .accessToken)
+              
+              pat_token=$(bash ./pipelines/databricksScripts/configure_cli_and_pat_token.sh \
+                            $(dbx-workspace-url) \
+                            $access_token)
+              export DATABRICKS_TOKEN=$access_token
+              export DATABRICKS_HOST=$(dbx-workspace-url)
+              echo 'Databricks CLI installed with PAT token:' $pat_token
+
+              echo 'Configuring Databricks secret scope'
+              bash ./pipelines/databricksScripts/create_secret_scope_with_keyvault.sh \
+                        analytics \
+                        $(key-vault-id) \
+                        $(key-vault-uri)
+
+              echo 'Creating/Editing Databricks cluster for warm path'
+              bash ./pipelines/databricksScripts/create_cluster.sh ./pipelines/cluster_config.json $(dbx-workspace-url) $pat_token
+              
+              echo 'Creating/Editing Databricks cluster for hot path'
+              bash ./pipelines/databricksScripts/create_cluster.sh ./pipelines/cluster_config_hot.json $(dbx-workspace-url) $pat_token
+        - task: AzureCLI@2
+          displayName: Disable network traffic to KeyVault
+          inputs:
+            azureSubscription: ${{ parameters.azureSubscription }}
+            scriptType: 'bash'
+            scriptLocation: 'inlineScript'
+            addSpnToEnvironment: true
+            inlineScript: |
+              az keyvault update --resource-group $(resourceGroupName) --name $(keyVaultName) --default-action Deny

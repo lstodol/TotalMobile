@@ -1,0 +1,112 @@
+parameters:
+  - name: environment
+    type: string
+  - name: azureSubscription
+    type: string
+  - name: enabled
+    type: boolean
+
+jobs:
+- deployment: DeployInfra
+  displayName: Infrastructure Deployment
+  environment: ${{parameters.environment}}
+  condition: ${{parameters.enabled}}
+  strategy:
+    runOnce:
+      deploy:
+        steps:
+          - checkout: self
+            submodules: true
+
+          - task: AzureCLI@2
+            name: Infra
+            displayName: Deploy Bicep Template
+            inputs:
+              azureSubscription: ${{ parameters.azureSubscription }}
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              addSpnToEnvironment: true
+              inlineScript: |
+               
+                # Check if the hot path variables have been fetched successfully
+                if [[ -z "$(awsGatewaySharedKey)" ]]; then
+                    echo "Error: awsGatewaySharedKey could not be fetched or is empty."
+                    awsGatewaySharedKey='default_value'
+                else
+                    awsGatewaySharedKey=$(awsGatewaySharedKey)
+                fi
+
+                if [[ -z "$(encodedProductteamWarehouseConnectionProps)" ]]; then
+                    echo "Error: encodedProductteamWarehouseConnectionProps could not be fetched or is empty."
+                    encodedProductteamWarehouseConnectionProps='default_value'
+                else
+                    encodedProductteamWarehouseConnectionProps=$(encodedProductteamWarehouseConnectionProps)
+                fi
+
+                az deployment sub create \
+                  --name analytics-unity-infra \
+                  --location uksouth \
+                  --template-file ./pipelines/infrastructure/main.bicep \
+                  --parameters ./pipelines/environments/$(env)/main.parameters.$(env).json \
+                  --parameters servicePrincipalId=$servicePrincipalId servicePrincipalKey='' awsGatewaySharedKey=$awsGatewaySharedKey encodedProductteamWarehouseConnectionProps=$encodedProductteamWarehouseConnectionProps
+
+          - task: AzureCLI@2
+            displayName: Enable network traffic to KeyVault and add access policy
+            inputs:
+              azureSubscription: ${{ parameters.azureSubscription }}
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              addSpnToEnvironment: true
+              inlineScript: |
+                echo "checking id for spn $servicePrincipalId"
+                spnId=$(az ad sp show --id $servicePrincipalId --query "{Id: id}" --output tsv)
+                echo "found spn objectId $spnId"
+                az keyvault set-policy --name $(keyVaultName) --object-id $spnId --secret-permissions get list
+                az keyvault update --resource-group $(resourceGroupName) --name $(keyVaultName) --default-action Allow
+          - task: AzureKeyVault@2
+            displayName: Configuration
+            inputs:
+              azureSubscription: ${{ parameters.azureSubscription }}
+              KeyVaultName: $(keyVaultName)
+              SecretsFilter: '*'
+              RunAsPreJob: false 
+          - task: AzureCLI@2
+            name: InfraApprovals
+            displayName: Approve Manage Private Endpoints
+            inputs:
+              azureSubscription: ${{ parameters.azureSubscription }}
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              addSpnToEnvironment: true
+              inlineScript: |
+                resourceGroupName=$(resourceGroupName)
+                storageAccount=$(storage-account-name) 
+
+                # List all private endpoints in the resource group
+                privateEndpointIds=$(az network private-endpoint-connection list -g $resourceGroupName --type Microsoft.Storage/storageAccounts	-n $storageAccount --query "[].{Id: id}" --output tsv)
+                echo "List of private enpoints ids: $privateEndpointIds"
+
+                for endpointId in $privateEndpointIds; do
+                    
+                  echo "endpointId: $endpointId"
+                    connectionStatus=$(az network private-endpoint-connection show --id $endpointId --query "properties.privateLinkServiceConnectionState.status" --output tsv)
+                  
+                    echo "connectionStatus: $connectionStatus"
+                    # Check if the connection status is "Pending"
+                    if [ "$connectionStatus" == "Pending" ]; then
+                        echo "Found a private endpoint with a pending connection: $endpointId"
+                        
+                        # Approve the private endpoint connection
+                        az network private-endpoint-connection approve --id $endpointId      
+                        echo "Approved the private endpoint connection: $endpointId"
+                    fi
+                done
+          - task: AzureCLI@2
+            displayName: Disable network traffic to KeyVault
+            inputs:
+              azureSubscription: ${{ parameters.azureSubscription }}
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              addSpnToEnvironment: true
+              inlineScript: |
+                az keyvault update --resource-group $(resourceGroupName) --name $(keyVaultName) --default-action Deny

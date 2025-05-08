@@ -1,0 +1,143 @@
+trigger:
+  batch: true
+  branches:
+    include:
+    - main
+    exclude:
+    - features/*
+  paths:
+    exclude:
+    - README.md
+    - pipelines/*
+
+pool:
+  vmImage: ubuntu-latest
+
+parameters:
+  - name: infra
+    displayName: Azure Infrastructure
+    type: boolean
+    default: false
+    
+  - name: databricks
+    displayName: Databricks Infrastructure
+    type: boolean
+    default: true
+
+  - name: devdeploy
+    displayName: Deploy to Dev
+    type: boolean
+    default: false
+
+  - name: qadeploy
+    displayName: Deploy to Qa
+    type: boolean
+    default: false
+  
+  - name: nftdeploy
+    displayName: Deploy to Nft
+    type: boolean
+    default: false
+
+  - name: uatdeploy
+    displayName: Deploy to Uat
+    type: boolean
+    default: false
+
+  - name: proddeploy
+    displayName: Deploy to Prod
+    type: boolean
+    default: false
+
+stages:
+
+- stage: Dev
+  displayName: Deploy to DEV
+  condition: ${{ parameters.devdeploy }}
+  variables:
+  - group: 'Analytics Unity Dev'
+  jobs:
+    - template: deploy-infra.yaml
+      parameters: 
+        environment: 'Analytics Unity NonProd'
+        azureSubscription: 'Unity Data Dev'
+        enabled: ${{ parameters.infra }}
+    - template: deploy-databricks.yaml
+      parameters: 
+        environment: 'Analytics Unity NonProd'
+        azureSubscription: 'Unity Data Dev'
+        enabled: ${{ parameters.databricks }}
+
+- stage: Qa
+  displayName: Deploy to QA
+  condition: ${{ parameters.qadeploy }}
+  variables:
+  - group: 'Analytics Unity Qa'
+  jobs:
+    - template: deploy-infra.yaml
+      parameters: 
+        environment: 'Analytics Unity NonProd'
+        azureSubscription: 'Unity Data Dev'
+        enabled: ${{ parameters.infra }}
+    - template: deploy-databricks.yaml
+      parameters: 
+        environment: 'Analytics Unity NonProd'
+        azureSubscription: 'Unity Data Dev'
+        enabled: ${{ parameters.databricks }}
+
+- stage: Nft
+  displayName: Deploy to NFT
+  condition: ${{ parameters.nftdeploy }}
+  variables:
+  - group: 'Analytics Unity Nft'
+  jobs:
+    - template: deploy-infra.yaml
+      parameters: 
+        environment: 'Analytics Unity NonProd'
+        azureSubscription: 'Unity Data Dev'
+        enabled: ${{ parameters.infra }}
+    - template: deploy-NFT-db.yaml
+      parameters: 
+        environment: 'Analytics Unity NonProd'
+        azureSubscription: 'Unity Data Dev'
+        enabled: ${{ parameters.infra }}
+    - template: deploy-databricks.yaml
+      parameters: 
+        environment: 'Analytics Unity NonProd'
+        azureSubscription: 'Unity Data Dev'
+        enabled: ${{ parameters.databricks }}
+
+- stage: Uat
+  displayName: Deploy to UAT
+  condition: ${{ parameters.uatdeploy }}
+  variables:
+  - group: 'Analytics Unity Uat'
+  jobs:
+    - template: deploy-infra.yaml
+      parameters: 
+        environment: 'Analytics Unity NonProd'
+        azureSubscription: 'Unity Data Dev'
+        enabled: ${{ parameters.infra }}
+    - template: deploy-databricks.yaml
+      parameters: 
+        environment: 'Analytics Unity NonProd'
+        azureSubscription: 'Unity Data Dev'
+        enabled: ${{ parameters.databricks }}
+
+- stage: Prod
+  displayName: Deploy to PROD
+  condition: ${{ parameters.proddeploy }}
+  variables:
+  - group: 'Analytics Unity Prod'
+  jobs:
+    - template: deploy-infra.yaml
+      parameters: 
+        environment: 'Analytics Unity Prod'
+        azureSubscription: 'Unity Data'
+        enabled: ${{ parameters.infra }}
+    - template: deploy-databricks.yaml
+      parameters: 
+        environment: 'Analytics Unity Prod'
+        azureSubscription: 'Unity Data'
+        enabled: ${{ parameters.databricks }}
+
